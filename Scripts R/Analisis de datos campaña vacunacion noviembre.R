@@ -1,0 +1,312 @@
+# Script analisis de datos de nueva campaña inmunozaciones (triple viral, polio,etc..)
+
+# Es único llamado para brindar información y recabar.
+
+# No hay segundo llamado para ver como le fue.  Solo trabajan central y las RS AMBA por el momento.
+
+
+# Activacion de los paquetes:
+
+library(dplyr)
+library(tidyverse)
+library(googlesheets4)
+library(janitor)
+library(lubridate)
+library(googledrive)
+library(readxl)
+library(writexl)
+library(beepr)
+library(eeptools)
+library(stringr)
+
+
+# limpia ambiente
+rm(list = ls()) 
+options(error = beep)
+
+# definir variables globales
+fecha_actualizacion <- today()
+
+# autorizar usuario
+
+gs4_auth(email = "soporte.cetec.pba@gmail.com")
+drive_auth(email = "soporte.cetec.pba@gmail.com")
+
+fecha_actualizacion <- today()
+
+# descargamos la hoja modelo (donde ir bajando los datos)
+
+hoja_modelo <- read_sheet(ss = "1qZlvZCubKhPp2I2YXb9lKRiTrip1FKQi5rj4fEXiwT0",
+                          sheet = "Base de datos",
+                          col_types = "c")
+
+# creamos vector con nombre de las columnas
+
+v_selec_cols <- colnames(hoja_modelo)
+
+# Descargamos las planillas de AMBA:
+
+links_total <- read_sheet(ss = "1usRlg-mA65hIDBS4OO-l9tIxFd5yldvt_okGoFYGJIE",
+                         sheet = "links",
+                         col_types = "c")
+
+
+
+# ahora usamos el for (comando de iteraci?n) para bajar todas las hojas:
+
+
+for (i in 1:nrow(links_total)) {
+  datos_1 <- range_read(ss = links_total$LINK[i],
+                        sheet = "Base de datos",
+                        col_types = "c")
+  
+  datos_1 <- datos_1 %>% 
+    select(all_of(v_selec_cols))
+  
+  datos_1$CETEC <- links_total$CETEC[i]
+  
+  hoja_modelo<- bind_rows(hoja_modelo, 
+                          datos_1)
+  
+  rm(datos_1)
+  
+  pausa <- 5
+  print(str_c("pausando por ", pausa))
+  Sys.sleep(pausa)
+  
+}
+
+
+
+# Descargamos hoja de central por separado (tiene una columna de más). Central tiene 4 hojas. Descargamos ambas
+
+central_1 <- read_sheet(ss = "1WmZQtIL8u03bh-XubsNlm15fS-A_ff3LpYByNTGrzo4",
+                      sheet = "Base de datos",
+                      col_types = "c")
+
+central_2 <- read_sheet(ss = "1WmZQtIL8u03bh-XubsNlm15fS-A_ff3LpYByNTGrzo4",
+                        sheet = "Base de datos 2",
+                        col_types = "c")
+
+central_3 <- read_sheet(ss = "1WmZQtIL8u03bh-XubsNlm15fS-A_ff3LpYByNTGrzo4",
+                        sheet = "Base de datos 3",
+                        col_types = "c")
+
+
+central_4 <- read_sheet(ss = "1WmZQtIL8u03bh-XubsNlm15fS-A_ff3LpYByNTGrzo4",
+                        sheet = "Base de datos 4",
+                        col_types = "c")
+
+
+central <- bind_rows(central_1,central_2,central_3,central_4)
+
+CETEC <- "CENTRAL"
+
+
+central_final <- central %>% select(-DIA_Y_HORARIO_DISPONIBLE_PARA_EL_LLAMADO) %>% mutate(CETEC)
+
+
+# unimos las bases:
+
+hoja_trabajo <-  bind_rows(hoja_modelo,central_final) %>% arrange(CETEC)
+
+
+  #  transformamos base para trabajar:
+
+hoja_trabajo <- hoja_trabajo %>%  mutate(FECHA_DE_LLAMADO = date(parse_date_time(hoja_trabajo$FECHA_DE_LLAMADO, c("%d%m%Y", "%Y%m%d"))))
+
+# Realizamos estadisticas de base de datos:
+
+base_inmunizaciones <- hoja_trabajo %>% count(CETEC) %>% arrange(CETEC)
+
+sheet_write(base_inmunizaciones,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "base")
+
+#Fallecidxs
+
+Fallecidxs <- hoja_trabajo %>% filter(!is.na(FALLECIDX)) %>%  count(CETEC,FALLECIDX) 
+
+sheet_write(Fallecidxs,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Fallecidxs")
+
+# Sin llamar
+
+sin_llamar <- hoja_trabajo %>% filter(CONTACTADX == "Sin llamar") %>% count(CETEC) 
+
+sheet_write(sin_llamar,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Sin llamar")
+
+# Contactados:
+
+contactados <- hoja_trabajo %>% count(CETEC,CONTACTADX) 
+
+sheet_write(contactados,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "contactados")
+
+# Fallidos:
+
+fallidos <- hoja_trabajo %>% count(CETEC,CANTIDAD_DE_FALLIDOS)
+
+sheet_write(fallidos,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "fallidos")
+
+# Llamados por mes
+
+Octubre_cetec <- hoja_trabajo %>% filter(FECHA_DE_LLAMADO  >= "2022-10-01" & FECHA_DE_LLAMADO <= "2022-10-31") %>% count(CONTACTADX,CANTIDAD_DE_FALLIDOS,CETEC)
+
+Noviembre_cetec <- hoja_trabajo %>% filter(FECHA_DE_LLAMADO  >= "2022-11-01" & FECHA_DE_LLAMADO <= "2022-11-30") %>% count(CONTACTADX,CANTIDAD_DE_FALLIDOS,CETEC)
+
+Diciembre_cetec <- hoja_trabajo %>% filter(FECHA_DE_LLAMADO  >= "2022-12-01" & FECHA_DE_LLAMADO <= "2022-12-31") %>% count(CONTACTADX,CANTIDAD_DE_FALLIDOS,CETEC)
+
+Enero_cetec <- hoja_trabajo %>% filter(FECHA_DE_LLAMADO  >= "2023-01-01" & FECHA_DE_LLAMADO <= "2023-01-31") %>% count(CONTACTADX,CANTIDAD_DE_FALLIDOS,CETEC)
+
+
+sheet_write(Octubre_cetec,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Octubre_cetec")
+
+sheet_write(Noviembre_cetec,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Noviembre_cetec")
+
+sheet_write(Diciembre_cetec,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Diciembre_cetec")
+
+sheet_write(Enero_cetec,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "Enero_cetec")
+
+# Te enteraste de la campaña?
+
+te_enteraste <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO)
+
+sheet_write(te_enteraste,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "te_enteraste")
+
+# Se vacunó con el refuerzo de la campaña de polio
+
+se_vacuno_refuerzo_polio <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_POLIO)
+
+sheet_write(se_vacuno_refuerzo_polio,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "se_vacuno_refuerzo_polio")
+
+# Se vacunó con el refuerzo de la campaña triple viral
+
+se_vacuno_refuerzo_3viral <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_TRIPLE_VIRAL)
+
+sheet_write(se_vacuno_refuerzo_3viral,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "se_vacuno_refuerzo_3viral")
+
+# SI NO SE VACUNO , ASISTIRA A VACUNARSE?
+
+asistira_a_vacunarse <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(`SI_NO_SE_VACUNO_ASISTIRA A VACUNARSE`)
+
+sheet_write(asistira_a_vacunarse,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "asistira_a_vacunarse")
+
+# DONDE LO VACUNARON?
+
+donde_vacunaron <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(DONDE_LX_VACUNARON)
+
+sheet_write(donde_vacunaron,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "donde_vacunaron")
+
+# COMO LO ATENDIERON?
+
+atencion <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(COMO_CONSIDERA_QUE_LX_ATENDIERON)
+
+sheet_write(atencion,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "atencion")
+
+# IRREGULARIDADES:
+
+IRREGULARIDADES <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(IRREGULARIDADES)
+
+sheet_write(IRREGULARIDADES,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "IRREGULARIDADES")
+
+
+# Cruces de preguntas:
+
+
+# 1) ¿Las personas que sabían de la campaña se vacunaron?
+
+sabia <- hoja_trabajo %>% filter(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO == "SI SABIA") %>% count(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO,SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_POLIO,SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_TRIPLE_VIRAL,CETEC)
+
+
+# 2) ¿Las personas que NO sabían de la campaña se vacunaron
+
+no_sabia <- hoja_trabajo %>% filter(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO == "NO TENIA LA INFORMACION") %>% count(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO,SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_POLIO,SE_VACUNO_CON_EL_REFUERZO_DE_CAMPAÑA_DE_TRIPLE_VIRAL,CETEC)
+
+# 3) ¿Las personas que no tenian información de la campaña y ahora con nuestro llamado la tienen irán a vacunarse?
+
+no_sabia_vacunarse <- hoja_trabajo %>% filter(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO == "NO TENIA LA INFORMACION") %>% count(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO,`SI_NO_SE_VACUNO_ASISTIRA A VACUNARSE`)
+
+# 4) ¿Las personas que sabían de la campaña irán a vacunarse?
+
+si_sabia_vacunarse <- hoja_trabajo %>% filter(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO == "SI SABIA") %>% count(TE_ENTERASTE_DE_LA_CAMPAÑA_DE_REFUERZO,`SI_NO_SE_VACUNO_ASISTIRA A VACUNARSE`)
+
+# 5) Vacunatorios con mala atención:
+
+vacunatorios_atencion <- hoja_trabajo %>% filter(!is.na(COMO_CONSIDERA_QUE_LX_ATENDIERON)) %>% count(DONDE_LX_VACUNARON,COMO_CONSIDERA_QUE_LX_ATENDIERON)
+
+# Subimos todo:
+
+sheet_write(sabia,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "sabia")
+
+sheet_write(no_sabia,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "no_sabia")
+
+sheet_write(no_sabia_vacunarse,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "no_sabia_vacunarse")
+
+sheet_write(si_sabia_vacunarse,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "si_sabia_vacunarse")
+
+sheet_write(vacunatorios_atencion,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "vacunatorios_atencion")
+
+
+# fecha de actualizacion:
+
+actualizacion <- as_tibble(as.character(Sys.time()))
+
+actualizacion %>% 
+  sheet_write(
+    ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+    sheet = "ultima actualizacion")
+
+# Municipios en los que se trabajo:
+
+colnames(hoja_trabajo)
+
+municipios <- hoja_trabajo %>% count(MUNICIPIO,CETEC) %>% arrange(MUNICIPIO)
+
+sheet_write(municipios,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "municipios_trabajo")
+
+IRREGULARIDADES_cetec_muni <- hoja_trabajo %>% filter(CONTACTADX == "Si") %>% count(IRREGULARIDADES,CETEC,MUNICIPIO) %>% arrange(CETEC)
+
+sheet_write(IRREGULARIDADES_cetec_muni,
+            ss = "1fJkWK-M4D72kfjLx4qWBuQ-p1Zr94BXGUPlRC-WQWQI",
+            sheet = "IRREGULARIDADES_cetec_muni")
