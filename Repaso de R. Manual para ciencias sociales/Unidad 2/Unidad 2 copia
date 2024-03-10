@@ -1,0 +1,34 @@
+#data wrangling: proceso de "domar" los datos. Ordenamiento y procesamiento de los datos para poder usarlos como nosotros queramos luego.
+# tecnicas de wangling:
+library(tidyverse)
+atencion_ciudadano<-read.csv("http://bitsandbricks.github.io/data/gcba_suaci_barrios.csv")
+#analizamos brevemente el dataset
+dim(atencion_ciudadano) # 57431 filas y 5 columnas o variables (periodo, rubro, tipo_prestacion, barrio,total)
+head(atencion_ciudadano) # 6 primeras filas
+names(atencion_ciudadano) # nombre de las variables.
+# usamos funcion str que nos indica la ESTRUCTURA de dataframe que no conocemos
+str(atencion_ciudadano) # VARIABLES TIPO INT: trabajan con numeros enteros (integers) restp de variables son factores, reciben el nombre de factores (usan datos chr de caracter)
+#str nos dice que estamos trabajando con un dataframe (se puede usar para cualquier objeto de R)
+# las variables categoricas reciben el nombre de factores.
+# si no se pone nada la función READ.CSV interpreta a todas las variables o columnas que tiene texto como factores.
+#para avisarle que no lo haga hay que usar un nuevo parametro: stringsAsFactors de la siguiente manera
+# "mis_datos"<-read.csv("archivo con mis datos, stringsAsFactors = FALSE)
+#En general es buena idea evitar que los campos de texto se asuman como factores, pero en éste caso está bien: todas las columnas de texto, en efecto, contienen variables categóricas.
+#una variable es categórica cuando es razonable considerar que se elige entre un conjunto finito de variables posibles; por ejemplo, los barrios de Buenos Aires son un conjunto finito y predeterminado.
+#función summary.
+summary(atencion_ciudadano) # nos da un resumen de las variables
+
+#Las categorías posibles para un factor son llamadas “niveles” (levels). Para ver todos los niveles del factor BARRIO, es decir todos los barrios representados en la columna con la variable BARRIO, podemos usar la función levels()
+
+levels(atencion_ciudadano$BARRIO)
+atencion_ciudadano$BARRIO #veo los datos (las filas) de esa columna
+
+#¿PORQUE SALE NULL?
+
+# CRUZANDO VARIABLE: OPERACIÓN JOIN combinar tablas relacionadas entre sí por una o mas variables en común. left_join(). la función toma como parametros 2 dataframes (que a fin y al cabo son tablas) y busca las variables que tengan el mismo nombre y usandolas como referencia completa la primera de ellas, la de la izquierda, con los datos nuevos que aporta la segunda. left_join() devuelve un dataframe nuevo con los datos combinados.
+
+#descargamos nuevo dataframe con barrios y comunas
+barrios_comunas<-read.csv("http://bitsandbricks.github.io/data/barrios_comunas.csv")
+
+
+

@@ -1,0 +1,62 @@
+// Queremos que cuando elegamos una opción de una lista salgan otras opciones en otra lista así se responde de forma condicional.
+
+// onEdit es un gatillador o trigger que hace que cada vez que cambie algo en la hoja el codigo se ejecuta automaticamente. No hay que llamarlo.
+
+function onEdit() {
+
+// Conectamos al codigo GS con la hoja de trabajo:
+
+// var prueba = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getRange('D2').setValue(5);
+
+// Esta es  una prueba. Cada vez que modifico algo del archivo en la celda D2 le doy el valor 5. Ejecución automatica gra
+
+// Habiendo dicho esto vamos a trabajar:
+
+//  Defino archivo:
+
+var archivo = SpreadsheetApp.getActiveSpreadsheet();
+
+// Defino hoja principa y secundaria:
+
+var hojaDatos = archivo.getSheetByName('Datos')
+var hojaLista = archivo.getSheetByName('Listas')
+
+//  Defino celda activa:
+
+// Es la celda donde me paro. Con el logger pruebo si funciona bien mi codigo. Si yo me paro en argentina por ejemplo
+// el programa tiene que reconocer esa celda y darme el valor (argentina en este caso)
+
+var pais = hojaDatos.getActiveCell().getValue();
+
+
+// Defino rango de la hoja lista (Son los Paises):
+
+var paises = hojaLista.getRange(1,1,1,hojaLista.getLastColumn()).getValues();
+Logger.log(paises)
+
+// Con el metodo index podemos buscar un objeto particular de esa lista de paises
+
+
+
+
+
+// Definimos variables de fila y columna (ya definimos celda ahora desglosamos)
+
+var filaActiva = hojaDatos.getActiveCell().getRow();
+var columnaActiva = hojaDatos.getActiveCell().getColumn();
+
+Logger.log(filaActiva)
+Logger.log(columnaActiva)
+
+if(filaActiva >= 2 && columnaActiva == 1) {
+ 
+  var indice = paises[0].indexOf(pais)+1;
+  var rangoValidacion = hojaLista.getRange(3,indice,hojaLista.getLastRow());
+  var reglaValidacion = SpreadsheetApp.newDataValidation().requireValueInRange(rangoValidacion).build();
+  hojaDatos.getActiveCell().offset(0,1).setDataValidation(reglaValidacion);
+
+
+
+}
+
+}

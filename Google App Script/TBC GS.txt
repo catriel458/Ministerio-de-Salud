@@ -1,0 +1,126 @@
+// Con OnEdit es un gatillo. Cada vez que edito la celda se producen cambios.
+
+function onEdit() {
+
+// activamos hojas de trabajo (lo guardamos como variable porque vamos a usar dos hojas)
+
+var archivo = SpreadsheetApp.getActiveSpreadsheet();
+
+// Definimos hoja destino y hoja origen
+
+var hojaOrigen = archivo.getSheetByName('1ER_LLAMADO');
+var hojaDestino1 = archivo.getSheetByName('ACTUALMENTE_TTO');
+var nombreOrigen = hojaOrigen.getName();
+
+// Identificamos celda que queremos usar como condicional:
+
+var celdaActiva = hojaOrigen.getActiveCell();
+var filaActiva = celdaActiva.getRow();
+var columnaActiva = celdaActiva.getColumn();
+var valor = celdaActiva.getValue();
+
+
+//  Esto nos permite ver si funciona. Entonces deberiamos pararnos en una celda del drive y nos 
+// tiene que tirar el numero de fila, columna y valor. 
+
+// Probamos:
+
+Logger.log(filaActiva)
+Logger.log(columnaActiva)
+Logger.log(valor)
+
+// Usamos condicional para poder identificar y mover lo que queremos:
+
+if(filaActiva >= 2 && columnaActiva == 14 && valor == "ESTA ACTUALMENTE EN TTO" && nombreOrigen == "1ER_LLAMADO") {
+Logger.log("Debemos copiar");
+
+// Vamos asignando lo que queremos copiar (rango para copiar):
+
+var rangoOrigen = hojaOrigen.getRange(filaActiva,1,1,14)
+
+// Con esto podemos ver si lo el rango que vamos a copiar es el correcto
+
+Logger.log(rangoOrigen.getValues());
+
+// Ahora asignamos el rango de destino (donde queremos pegar)
+
+var rangoDestino1 = hojaDestino1.getRange(hojaDestino1.getLastRow()+1,1,1,14);
+
+// Ahora copiamos:
+
+rangoOrigen.copyTo(rangoDestino1);
+
+}
+
+
+var hojaDestino2 = archivo.getSheetByName('NUNCA_ESTUVO_EN_TTO')
+
+if(filaActiva >= 2 && columnaActiva == 14 && valor == "NUNCA ESTUVO EN TTO" && nombreOrigen == "1ER_LLAMADO") {
+Logger.log("Debemos copiar");
+
+// Vamos asignando lo que queremos copiar (rango para copiar):
+
+var rangoOrigen = hojaOrigen.getRange(filaActiva,1,1,14)
+
+// Con esto podemos ver si lo el rango que vamos a copiar es el correcto
+
+Logger.log(rangoOrigen.getValues());
+
+// Ahora asignamos el rango de destino (donde queremos pegar)
+
+var rangoDestino2 = hojaDestino2.getRange(hojaDestino2.getLastRow()+1,1,1,14);
+
+// Ahora copiamos:
+
+rangoOrigen.copyTo(rangoDestino2);
+
+}
+
+var hojaDestino3 = archivo.getSheetByName('ESTUVO_EN TTO_Y_DISCONTINUO')
+
+if(filaActiva >= 2 && columnaActiva == 14 && valor == "ESTUVO EN TTO Y DISCONTINUO" && nombreOrigen == "1ER_LLAMADO") {
+Logger.log("Debemos copiar");
+
+// Vamos asignando lo que queremos copiar (rango para copiar):
+
+var rangoOrigen = hojaOrigen.getRange(filaActiva,1,1,14)
+
+// Con esto podemos ver si lo el rango que vamos a copiar es el correcto
+
+Logger.log(rangoOrigen.getValues());
+
+// Ahora asignamos el rango de destino (donde queremos pegar)
+
+var rangoDestino3 = hojaDestino3.getRange(hojaDestino3.getLastRow()+1,1,1,14);
+
+// Ahora copiamos:
+
+rangoOrigen.copyTo(rangoDestino3);
+
+}
+
+var hojaDestino4 = archivo.getSheetByName('ESTUVO_EN_TTO_Y_LE_DIERON_EL_ALTA')
+
+if(filaActiva >= 2 && columnaActiva == 14 && valor == "ESTUVO EN TTO Y LE DIERON EL ALTA" && nombreOrigen == "1ER_LLAMADO") {
+Logger.log("Debemos copiar");
+
+// Vamos asignando lo que queremos copiar (rango para copiar):
+
+var rangoOrigen = hojaOrigen.getRange(filaActiva,1,1,14)
+
+// Con esto podemos ver si lo el rango que vamos a copiar es el correcto
+
+Logger.log(rangoOrigen.getValues());
+
+// Ahora asignamos el rango de destino (donde queremos pegar)
+
+var rangoDestino4 = hojaDestino4.getRange(hojaDestino4.getLastRow()+1,1,1,14);
+
+// Ahora copiamos:
+
+rangoOrigen.copyTo(rangoDestino4);
+
+}
+
+}
+

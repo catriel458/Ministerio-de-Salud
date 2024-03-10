@@ -1,0 +1,1145 @@
+// Obtener la hoja de cálculo activa
+var hojaCalculo = SpreadsheetApp.getActiveSpreadsheet();
+// Obtener la hoja "Nuevo Formato"
+var nuevoFormato = hojaCalculo.getSheetByName("Nuevo Formato");
+
+var planilla = hojaCalculo.getSheetByName("Planilla");
+
+function actualizarPrimerCasoAsignado() {
+  // Obtener el nombre del operador de la hoja "Nuevo Formato"
+  var hojaActiva = SpreadsheetApp.getActiveSpreadsheet();
+  var nuevoFormato = hojaActiva.getSheetByName("Nuevo Formato");
+  var nombreOperador = nuevoFormato.getRange("C2").getValue();
+
+  // Obtener el caso asignado actualmente
+  var casoActual = nuevoFormato.getRange("C3").getValue();
+
+  // Verificar si el nombre del operador ha sido asignado y si hay un caso actual
+  if (nombreOperador !== "" && casoActual !== "") {
+    // Buscar el índice del caso actual en la hoja "coordis"
+    var coordis = hojaActiva.getSheetByName("coordis");
+    var datosCoordis = coordis.getDataRange().getValues();
+    var casoActualIndex = datosCoordis.findIndex((row) => row[6] == casoActual);
+
+    // Verificar si se encontró el caso actual
+    if (casoActualIndex !== -1 && casoActualIndex < datosCoordis.length - 1) {
+      // Obtener el DNI del siguiente caso asignado al operador
+      var siguienteCasoAsignado = datosCoordis[casoActualIndex + 1][6];
+
+      // Actualizar el valor en la celda C3 del "Nuevo formato" con el siguiente caso asignado
+      nuevoFormato.getRange("C3").setValue(siguienteCasoAsignado);
+
+      // Mostrar un mensaje de alerta
+      SpreadsheetApp.getUi().alert(
+        "Número de DNI del próximo caso asignado ha sido actualizado."
+      );
+    } else {
+      // Si no hay más casos asignados para este operador, mostrar un mensaje
+      SpreadsheetApp.getUi().alert(
+        "No hay más casos asignados para este operador."
+      );
+    }
+  } else {
+    // Si el nombre del operador o el caso actual están vacíos, mostrar un mensaje de error
+    SpreadsheetApp.getUi().alert(
+      "El nombre del operador o el caso actual están vacíos."
+    );
+  }
+}
+
+// Función para buscar la información de la última fecha
+function buscarInformacionUltimaFecha() {
+  var dniCeldaC4 = nuevoFormato.getRange("C3").getValue();
+  var datos = planilla.getDataRange().getValues();
+
+  var ultimaFecha = new Date(1900, 0, 1);
+  var informacionUltimaFecha = [];
+
+  for (var i = 0; i < datos.length; i++) {
+    var fila = datos[i];
+
+    if (fila[3] == dniCeldaC4) {
+      var informacionFila = obtenerColumnaFechaMasActual(fila.slice(0));
+
+      if (informacionFila[0] > ultimaFecha) {
+        ultimaFecha = informacionFila[0];
+        informacionUltimaFecha = informacionFila;
+      }
+    }
+  }
+
+  // Verifica si se encontraron fechas antes de devolver la información
+  if (informacionUltimaFecha.length > 0) {
+    Logger.log(
+      "Información de la última fecha encontrada: " + informacionUltimaFecha
+    );
+    return informacionUltimaFecha;
+  } else {
+    Logger.log("No se encontraron fechas para el DNI especificado.");
+    return []; // Devuelve un array vacío si no se encontraron fechas
+  }
+}
+
+// Función para obtener la columna de fecha más actual y las 3 columnas siguientes
+function obtenerColumnaFechaMasActual(rango) {
+  let fechaMasReciente = new Date(1960, 0, 1);
+  let indiceColumnaFecha = 0;
+
+  for (let i = 252; i < rango.length; i++) {
+    const fechaActual = new Date(rango[i]);
+
+    if (fechaActual > fechaMasReciente) {
+      fechaMasReciente = fechaActual;
+      indiceColumnaFecha = i;
+    }
+  }
+
+  if (indiceColumnaFecha !== -1) {
+    const columnasResultado = rango.slice(
+      indiceColumnaFecha,
+      indiceColumnaFecha + 4 // Cambiar a +4 para incluir solo las 3 columnas siguientes
+    );
+    return columnasResultado; // Solo se devuelve las 4 columnas
+  }
+
+  return [];
+}
+
+// Función para pegar la información de la última fecha en el "Nuevo Formato"
+function pegarInformacionUltimaFecha() {
+  var informacionUltimaFecha = buscarInformacionUltimaFecha();
+
+  // Verificar si hay fechas disponibles en la información
+  if (informacionUltimaFecha.length > 0 && informacionUltimaFecha[0]) {
+    // Comparar la fecha con la existente en C4
+    if (informacionUltimaFecha[0] != nuevoFormato.getRange("C4").getValue()) {
+      var rangoDestino = nuevoFormato.getRange("G4:J4");
+      rangoDestino.setValues([informacionUltimaFecha]);
+    } else {
+      Logger.log("La fecha es la misma, no se realizará la actualización.");
+    }
+  } else {
+    Logger.log("No se encontraron fechas para el DNI especificado.");
+  }
+}
+
+// Función para buscar la fila en la hoja "Planilla" que coincida con el DNI
+function buscarFilaPorDni(dni, hoja) {
+  var datos = hoja.getDataRange().getValues();
+
+  for (var i = 0; i < datos.length; i++) {
+    if (datos[i][3] == dni) {
+      return i + 1;
+    }
+  }
+
+  return -1;
+}
+
+// Función para limpiar las celdas
+function Limpiar() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var formS = ss.getSheetByName("Nuevo Formato");
+
+  var rangesToClear = [
+    "C3",
+    "G4",
+    "H4",
+    "I4",
+    "J4",
+    "G5",
+    "H5",
+    "I5",
+    "J5",
+    "K5",
+    "L5",
+    "C8:C19",
+    "E8",
+    "C22:C28",
+    "E22:E28",
+    "G22:G28",
+    "I22:I24",
+    "C30:C51",
+    "E30:E51",
+    "G30:G51",
+    "I30:I51",
+    "C53",
+    "C55:G76",
+    "C79:E83",
+  ];
+  for (var i = 0; i < rangesToClear.length; i++) {
+    formS.getRange(rangesToClear[i]).clearContent();
+  }
+}
+// Función para crear las nuevas columnas o pegar la información según corresponda
+function crearNuevasColumnasOActualizarDatos() {
+  // Obtener los datos de las nuevas columnas (G5:J5)
+  var datosNuevos = nuevoFormato.getRange("G5:J5").getValues();
+
+  // Obtener el DNI del nuevo formato (C4)
+  var dniNuevoFormato = nuevoFormato.getRange("C3").getValue();
+
+  // Buscar la fila en la hoja "Planilla" que coincida con el DNI
+  var filaEncontrada = buscarFilaPorDni(dniNuevoFormato, planilla);
+
+  // Si se encontró la fila
+  if (filaEncontrada !== -1) {
+    // Obtener el rango de datos
+    var datosPlanilla = planilla.getDataRange().getValues();
+
+    // Encontrar la primera columna vacía después del DNI
+    var primeraColumnaVacia = datosPlanilla[filaEncontrada - 1].indexOf(
+      "",
+      252
+    );
+
+    // Si no se encontró una columna vacía después del DNI, establecerla en la siguiente columna disponible
+    if (primeraColumnaVacia === -1) {
+      primeraColumnaVacia = datosPlanilla[filaEncontrada - 1].length;
+    }
+
+    // Determinar el rango donde pegar los datos
+    var rangoDestino = planilla.getRange(
+      filaEncontrada,
+      primeraColumnaVacia + 1,
+      datosNuevos.length,
+      datosNuevos[0].length
+    );
+
+    // Pegar los datos en el rango destino
+    rangoDestino.setValues(datosNuevos);
+
+    // Agregar encabezados a las nuevas columnas
+    var encabezados = [
+      "Fecha",
+      "Operador",
+      "Tipo de llamado",
+      "Resultado de llamado",
+    ];
+    for (var i = 0; i < encabezados.length; i++) {
+      planilla
+        .getRange(1, primeraColumnaVacia + i + 1)
+        .setValue(encabezados[i]);
+    }
+
+    // Mostrar un mensaje de confirmación
+    Browser.msgBox("Información actualizada correctamente.");
+  } else {
+    // Mostrar un mensaje de error si no se encontró la fila
+    Browser.msgBox(
+      "No se encontró la fila para el DNI " + dniNuevoFormato + "."
+    );
+  }
+}
+
+// Buscar los datos de la encuesta:
+
+var NUM_COLUMNA_BUSQUEDA = 3;
+
+function Buscar() {
+  var hojaActiva = SpreadsheetApp.getActiveSpreadsheet();
+  var formulario = hojaActiva.getSheetByName("Nuevo Formato"); // Nombre de hoja del formulario
+
+  var valor = formulario.getRange("C3").getDisplayValue();
+  var valores = hojaActiva
+    .getSheetByName("Planilla")
+    .getDataRange()
+    .getDisplayValues(); // Nombre de hoja donde se almacenan datos
+  // getRange("CELDA DEL FORMULARIO") setValue(Fila[COLUMNA DEL DATO QUE QUIERO PEGAR EN LA CELDA DEL FORMULARIO])
+  for (var i = 0; i < valores.length; i++) {
+    var fila = valores[i];
+    if (fila[NUM_COLUMNA_BUSQUEDA] == valor) {
+      // Primera parte del formulario
+
+      // Tipo y fecha de llamado
+
+      formulario.getRange("K5").setValue(fila[0]);
+      formulario.getRange("L5").setValue(fila[1]);
+
+      // Datos personales
+
+      formulario.getRange("C8").setValue(fila[2]);
+      formulario.getRange("C9").setValue(fila[3]);
+      formulario.getRange("C10").setValue(fila[4]);
+      formulario.getRange("C11").setValue(fila[5]);
+      formulario.getRange("C12").setValue(fila[6]);
+      formulario.getRange("C13").setValue(fila[7]);
+      formulario.getRange("C14").setValue(fila[8]);
+      formulario.getRange("C15").setValue(fila[9]);
+      formulario.getRange("C16").setValue(fila[10]);
+      formulario.getRange("C17").setValue(fila[11]);
+      formulario.getRange("C18").setValue(fila[12]);
+      formulario.getRange("C19").setValue(fila[13]);
+
+      // Entrevista primer llamado:
+
+      formulario.getRange("C22").setValue(fila[14]);
+      formulario.getRange("E22").setValue(fila[15]);
+      formulario.getRange("G22").setValue(fila[16]);
+      formulario.getRange("I22").setValue(fila[17]);
+
+      formulario.getRange("C23").setValue(fila[18]);
+      formulario.getRange("E23").setValue(fila[19]);
+      formulario.getRange("G23").setValue(fila[20]);
+      formulario.getRange("I23").setValue(fila[21]);
+
+      formulario.getRange("C24").setValue(fila[22]);
+      formulario.getRange("E24").setValue(fila[23]);
+      formulario.getRange("G24").setValue(fila[24]);
+      formulario.getRange("I24").setValue(fila[25]);
+
+      formulario.getRange("C25").setValue(fila[26]);
+      formulario.getRange("E25").setValue(fila[27]);
+      formulario.getRange("G25").setValue(fila[28]);
+
+      formulario.getRange("C26").setValue(fila[29]);
+      formulario.getRange("E26").setValue(fila[30]);
+      formulario.getRange("G26").setValue(fila[31]);
+
+      formulario.getRange("C27").setValue(fila[32]);
+      formulario.getRange("E27").setValue(fila[33]);
+
+      formulario.getRange("C28").setValue(fila[34]);
+      formulario.getRange("E28").setValue(fila[35]);
+      formulario.getRange("G28").setValue(fila[36]);
+
+      // Observaciones
+
+      formulario.getRange("E8").setValue(fila[37]);
+
+      // Turnos para consultas
+
+      // Turno 1
+
+      formulario.getRange("C30").setValue(fila[38]);
+      formulario.getRange("C31").setValue(fila[39]);
+      formulario.getRange("C32").setValue(fila[40]);
+      formulario.getRange("C33").setValue(fila[41]);
+      formulario.getRange("C34").setValue(fila[42]);
+      formulario.getRange("C35").setValue(fila[43]);
+      formulario.getRange("C36").setValue(fila[44]);
+      formulario.getRange("C37").setValue(fila[45]);
+      formulario.getRange("C38").setValue(fila[46]);
+      formulario.getRange("C39").setValue(fila[47]);
+      formulario.getRange("C40").setValue(fila[48]);
+
+      // Turno 2
+
+      formulario.getRange("E30").setValue(fila[49]);
+      formulario.getRange("E31").setValue(fila[50]);
+      formulario.getRange("E32").setValue(fila[51]);
+      formulario.getRange("E33").setValue(fila[52]);
+      formulario.getRange("E34").setValue(fila[53]);
+      formulario.getRange("E35").setValue(fila[54]);
+      formulario.getRange("E36").setValue(fila[55]);
+      formulario.getRange("E37").setValue(fila[56]);
+      formulario.getRange("E38").setValue(fila[57]);
+      formulario.getRange("E39").setValue(fila[58]);
+      formulario.getRange("E40").setValue(fila[59]);
+
+      // Turno 3
+
+      formulario.getRange("G30").setValue(fila[60]);
+      formulario.getRange("G31").setValue(fila[61]);
+      formulario.getRange("G32").setValue(fila[62]);
+      formulario.getRange("G33").setValue(fila[63]);
+      formulario.getRange("G34").setValue(fila[64]);
+      formulario.getRange("G35").setValue(fila[65]);
+      formulario.getRange("G36").setValue(fila[66]);
+      formulario.getRange("G37").setValue(fila[67]);
+      formulario.getRange("G38").setValue(fila[68]);
+      formulario.getRange("G39").setValue(fila[69]);
+      formulario.getRange("G40").setValue(fila[70]);
+
+      // Turno 4
+
+      formulario.getRange("I30").setValue(fila[71]);
+      formulario.getRange("I31").setValue(fila[72]);
+      formulario.getRange("I32").setValue(fila[73]);
+      formulario.getRange("I33").setValue(fila[74]);
+      formulario.getRange("I34").setValue(fila[75]);
+      formulario.getRange("I35").setValue(fila[76]);
+      formulario.getRange("I36").setValue(fila[77]);
+      formulario.getRange("I37").setValue(fila[78]);
+      formulario.getRange("I38").setValue(fila[79]);
+      formulario.getRange("I39").setValue(fila[80]);
+      formulario.getRange("I40").setValue(fila[81]);
+
+      // Turno 5
+
+      formulario.getRange("C41").setValue(fila[82]);
+      formulario.getRange("C42").setValue(fila[83]);
+      formulario.getRange("C43").setValue(fila[84]);
+      formulario.getRange("C44").setValue(fila[85]);
+      formulario.getRange("C45").setValue(fila[86]);
+      formulario.getRange("C46").setValue(fila[87]);
+      formulario.getRange("C47").setValue(fila[88]);
+      formulario.getRange("C48").setValue(fila[89]);
+      formulario.getRange("C49").setValue(fila[90]);
+      formulario.getRange("C50").setValue(fila[91]);
+      formulario.getRange("C51").setValue(fila[92]);
+
+      // Turno 6
+
+      formulario.getRange("E41").setValue(fila[93]);
+      formulario.getRange("E42").setValue(fila[94]);
+      formulario.getRange("E43").setValue(fila[95]);
+      formulario.getRange("E44").setValue(fila[96]);
+      formulario.getRange("E45").setValue(fila[97]);
+      formulario.getRange("E46").setValue(fila[98]);
+      formulario.getRange("E47").setValue(fila[99]);
+      formulario.getRange("E48").setValue(fila[100]);
+      formulario.getRange("E49").setValue(fila[101]);
+      formulario.getRange("E50").setValue(fila[102]);
+      formulario.getRange("E51").setValue(fila[103]);
+
+      // Turno 7
+
+      formulario.getRange("G41").setValue(fila[104]);
+      formulario.getRange("G42").setValue(fila[105]);
+      formulario.getRange("G43").setValue(fila[106]);
+      formulario.getRange("G44").setValue(fila[107]);
+      formulario.getRange("G45").setValue(fila[108]);
+      formulario.getRange("G46").setValue(fila[109]);
+      formulario.getRange("G47").setValue(fila[110]);
+      formulario.getRange("G48").setValue(fila[111]);
+      formulario.getRange("G49").setValue(fila[112]);
+      formulario.getRange("G50").setValue(fila[113]);
+      formulario.getRange("G51").setValue(fila[114]);
+
+      // Turno 8
+
+      formulario.getRange("I41").setValue(fila[115]);
+      formulario.getRange("I42").setValue(fila[116]);
+      formulario.getRange("I43").setValue(fila[117]);
+      formulario.getRange("I44").setValue(fila[118]);
+      formulario.getRange("I45").setValue(fila[119]);
+      formulario.getRange("I46").setValue(fila[120]);
+      formulario.getRange("I47").setValue(fila[121]);
+      formulario.getRange("I48").setValue(fila[122]);
+      formulario.getRange("I49").setValue(fila[123]);
+      formulario.getRange("I50").setValue(fila[124]);
+      formulario.getRange("I51").setValue(fila[125]);
+
+      // Equipo Hospitalario
+
+      formulario.getRange("C53").setValue(fila[126]);
+
+      // PPD
+
+      formulario.getRange("C55").setValue(fila[127]);
+      formulario.getRange("D55").setValue(fila[128]);
+      formulario.getRange("E55").setValue(fila[129]);
+      formulario.getRange("F55").setValue(fila[130]);
+      formulario.getRange("G55").setValue(fila[131]);
+
+      // Ecografia abdominal
+
+      formulario.getRange("C56").setValue(fila[132]);
+      formulario.getRange("D56").setValue(fila[133]);
+      formulario.getRange("E56").setValue(fila[134]);
+      formulario.getRange("F56").setValue(fila[135]);
+      formulario.getRange("G56").setValue(fila[136]);
+
+      // Ecografia renal y de vias urinarias superiores
+
+      formulario.getRange("C57").setValue(fila[137]);
+      formulario.getRange("D57").setValue(fila[138]);
+      formulario.getRange("E57").setValue(fila[139]);
+      formulario.getRange("F57").setValue(fila[140]);
+      formulario.getRange("G57").setValue(fila[141]);
+
+      // Tisomf (<45 años)
+
+      formulario.getRange("C58").setValue(fila[142]);
+      formulario.getRange("D58").setValue(fila[143]);
+      formulario.getRange("E58").setValue(fila[144]);
+      formulario.getRange("F58").setValue(fila[145]);
+      formulario.getRange("G58").setValue(fila[146]);
+
+      // Colonoscopía (>45 años extranjera/o)
+
+      formulario.getRange("C59").setValue(fila[147]);
+      formulario.getRange("D59").setValue(fila[148]);
+      formulario.getRange("E59").setValue(fila[149]);
+      formulario.getRange("F59").setValue(fila[150]);
+      formulario.getRange("G59").setValue(fila[151]);
+
+      // Bucodental
+
+      formulario.getRange("C60").setValue(fila[152]);
+      formulario.getRange("D60").setValue(fila[153]);
+      formulario.getRange("E60").setValue(fila[154]);
+      formulario.getRange("F60").setValue(fila[155]);
+      formulario.getRange("G60").setValue(fila[156]);
+
+      // PAP / Colposcopía
+
+      formulario.getRange("C61").setValue(fila[157]);
+      formulario.getRange("D61").setValue(fila[158]);
+      formulario.getRange("E61").setValue(fila[159]);
+      formulario.getRange("F61").setValue(fila[160]);
+      formulario.getRange("G61").setValue(fila[161]);
+
+      // Eco mamaria (todas las edades)
+
+      formulario.getRange("C62").setValue(fila[162]);
+      formulario.getRange("D62").setValue(fila[163]);
+      formulario.getRange("E62").setValue(fila[164]);
+      formulario.getRange("F62").setValue(fila[165]);
+      formulario.getRange("G62").setValue(fila[166]);
+
+      // Mamografía bilateral con proyección axilar (>40 años)
+
+      formulario.getRange("C63").setValue(fila[167]);
+      formulario.getRange("D63").setValue(fila[168]);
+      formulario.getRange("E63").setValue(fila[169]);
+      formulario.getRange("F63").setValue(fila[170]);
+      formulario.getRange("G63").setValue(fila[171]);
+
+      // Ecografia endovaginal
+
+      formulario.getRange("C64").setValue(fila[172]);
+      formulario.getRange("D64").setValue(fila[173]);
+      formulario.getRange("E64").setValue(fila[174]);
+      formulario.getRange("F64").setValue(fila[175]);
+      formulario.getRange("G64").setValue(fila[176]);
+
+      // Vacuna Doble Adultos
+
+      formulario.getRange("C65").setValue(fila[177]);
+      formulario.getRange("D65").setValue(fila[178]);
+      formulario.getRange("E65").setValue(fila[179]);
+      formulario.getRange("F65").setValue(fila[180]);
+      formulario.getRange("G65").setValue(fila[181]);
+
+      // Vacuna Antineumococcica
+
+      formulario.getRange("C66").setValue(fila[182]);
+      formulario.getRange("D66").setValue(fila[183]);
+      formulario.getRange("E66").setValue(fila[184]);
+      formulario.getRange("F66").setValue(fila[185]);
+      formulario.getRange("G66").setValue(fila[186]);
+
+      // Vacuna Antigripal
+
+      formulario.getRange("C67").setValue(fila[187]);
+      formulario.getRange("D67").setValue(fila[188]);
+      formulario.getRange("E67").setValue(fila[189]);
+      formulario.getRange("F67").setValue(fila[190]);
+      formulario.getRange("G67").setValue(fila[191]);
+
+      // Vacuna Covid
+
+      formulario.getRange("C68").setValue(fila[192]);
+      formulario.getRange("D68").setValue(fila[193]);
+      formulario.getRange("E68").setValue(fila[194]);
+      formulario.getRange("F68").setValue(fila[195]);
+      formulario.getRange("G68").setValue(fila[196]);
+
+      // Vacuna HPV (hasta los 26 años )
+
+      formulario.getRange("C69").setValue(fila[197]);
+      formulario.getRange("D69").setValue(fila[198]);
+      formulario.getRange("E69").setValue(fila[199]);
+      formulario.getRange("F69").setValue(fila[200]);
+      formulario.getRange("G69").setValue(fila[201]);
+
+      // Parasitología - Test de Graham
+
+      formulario.getRange("C70").setValue(fila[202]);
+      formulario.getRange("D70").setValue(fila[203]);
+      formulario.getRange("E70").setValue(fila[204]);
+      formulario.getRange("F70").setValue(fila[205]);
+      formulario.getRange("G70").setValue(fila[206]);
+
+      // Laboratorio
+
+      formulario.getRange("C71").setValue(fila[207]);
+      formulario.getRange("D71").setValue(fila[208]);
+      formulario.getRange("E71").setValue(fila[209]);
+      formulario.getRange("F71").setValue(fila[210]);
+      formulario.getRange("G71").setValue(fila[211]);
+
+      // Rx torax
+
+      formulario.getRange("C72").setValue(fila[212]);
+      formulario.getRange("D72").setValue(fila[213]);
+      formulario.getRange("E72").setValue(fila[214]);
+      formulario.getRange("F72").setValue(fila[215]);
+      formulario.getRange("G72").setValue(fila[216]);
+
+      // Rx abdomen
+
+      formulario.getRange("C73").setValue(fila[217]);
+      formulario.getRange("D73").setValue(fila[218]);
+      formulario.getRange("E73").setValue(fila[219]);
+      formulario.getRange("F73").setValue(fila[220]);
+      formulario.getRange("G73").setValue(fila[221]);
+
+      // grupo y factor
+
+      formulario.getRange("C74").setValue(fila[222]);
+      formulario.getRange("D74").setValue(fila[223]);
+      formulario.getRange("E74").setValue(fila[224]);
+      formulario.getRange("F74").setValue(fila[225]);
+      formulario.getRange("G74").setValue(fila[226]);
+
+      // Ecocardiograma
+
+      formulario.getRange("C75").setValue(fila[227]);
+      formulario.getRange("D75").setValue(fila[228]);
+      formulario.getRange("E75").setValue(fila[229]);
+      formulario.getRange("F75").setValue(fila[230]);
+      formulario.getRange("G75").setValue(fila[231]);
+
+      // Electrocardiograma
+
+      formulario.getRange("C76").setValue(fila[232]);
+      formulario.getRange("D76").setValue(fila[233]);
+      formulario.getRange("E76").setValue(fila[234]);
+      formulario.getRange("F76").setValue(fila[235]);
+      formulario.getRange("G76").setValue(fila[236]);
+
+      // Reprogramaciones
+
+      formulario.getRange("C79").setValue(fila[237]);
+      formulario.getRange("D79").setValue(fila[238]);
+      formulario.getRange("E79").setValue(fila[239]);
+
+      formulario.getRange("C80").setValue(fila[240]);
+      formulario.getRange("D80").setValue(fila[241]);
+      formulario.getRange("E80").setValue(fila[242]);
+
+      formulario.getRange("C81").setValue(fila[243]);
+      formulario.getRange("D81").setValue(fila[244]);
+      formulario.getRange("E81").setValue(fila[245]);
+
+      formulario.getRange("C82").setValue(fila[246]);
+      formulario.getRange("D82").setValue(fila[247]);
+      formulario.getRange("E82").setValue(fila[248]);
+
+      formulario.getRange("C83").setValue(fila[249]);
+      formulario.getRange("D83").setValue(fila[250]);
+      formulario.getRange("E83").setValue(fila[251]);
+    }
+  }
+}
+
+// Actualizar datos
+function Actualizar() {
+  var hojaActiva = SpreadsheetApp.getActiveSpreadsheet();
+  var formulario = hojaActiva.getSheetByName("Nuevo Formato"); // Nombre de hoja del formulario
+  var datos = hojaActiva.getSheetByName("Planilla"); // Nombre de hoja donde se almacenan datos
+
+  var valor = formulario.getRange("C3").getDisplayValue();
+  var dni = formulario.getRange("C9").getDisplayValue();
+  var valores = hojaActiva
+    .getSheetByName("Planilla")
+    .getDataRange()
+    .getDisplayValues(); // Nombre de hoja donde se almacenan datos
+
+  for (var i = 0; i < valores.length; i++) {
+    var fila = valores[i];
+    if (fila[NUM_COLUMNA_BUSQUEDA] == valor && valor == dni) {
+      var INT_R = i + 1;
+
+      var valores1 = [
+        [
+          // Primera parte del formulario
+
+          // Tipo y fecha de llamado
+
+          formulario.getRange("K5").getDisplayValue(),
+          formulario.getRange("L5").getDisplayValue(),
+
+          // Datos personales
+
+          formulario.getRange("C8").getDisplayValue(),
+          formulario.getRange("C9").getDisplayValue(),
+          formulario.getRange("C10").getDisplayValue(),
+          formulario.getRange("C11").getDisplayValue(),
+          formulario.getRange("C12").getDisplayValue(),
+          formulario.getRange("C13").getDisplayValue(),
+          formulario.getRange("C14").getDisplayValue(),
+          formulario.getRange("C15").getDisplayValue(),
+          formulario.getRange("C16").getDisplayValue(),
+          formulario.getRange("C17").getDisplayValue(),
+          formulario.getRange("C18").getDisplayValue(),
+          formulario.getRange("C19").getDisplayValue(),
+
+          // Entrevista primer llamado:
+
+          formulario.getRange("C22").getDisplayValue(),
+          formulario.getRange("E22").getDisplayValue(),
+          formulario.getRange("G22").getDisplayValue(),
+          formulario.getRange("I22").getDisplayValue(),
+
+          formulario.getRange("C23").getDisplayValue(),
+          formulario.getRange("E23").getDisplayValue(),
+          formulario.getRange("G23").getDisplayValue(),
+          formulario.getRange("I23").getDisplayValue(),
+
+          formulario.getRange("C24").getDisplayValue(),
+          formulario.getRange("E24").getDisplayValue(),
+          formulario.getRange("G24").getDisplayValue(),
+          formulario.getRange("I24").getDisplayValue(),
+
+          formulario.getRange("C25").getDisplayValue(),
+          formulario.getRange("E25").getDisplayValue(),
+          formulario.getRange("G25").getDisplayValue(),
+
+          formulario.getRange("C26").getDisplayValue(),
+          formulario.getRange("E26").getDisplayValue(),
+          formulario.getRange("G26").getDisplayValue(),
+
+          formulario.getRange("C27").getDisplayValue(),
+          formulario.getRange("E27").getDisplayValue(),
+
+          formulario.getRange("C28").getDisplayValue(),
+          formulario.getRange("E28").getDisplayValue(),
+          formulario.getRange("G28").getDisplayValue(),
+
+          // Observaciones
+
+          formulario.getRange("E8").getDisplayValue(),
+
+          // Turnos para consultas
+
+          // Turno 1
+
+          formulario.getRange("C30").getDisplayValue(),
+          formulario.getRange("C31").getDisplayValue(),
+          formulario.getRange("C32").getDisplayValue(),
+          formulario.getRange("C33").getDisplayValue(),
+          formulario.getRange("C34").getDisplayValue(),
+          formulario.getRange("C35").getDisplayValue(),
+          formulario.getRange("C36").getDisplayValue(),
+          formulario.getRange("C37").getDisplayValue(),
+          formulario.getRange("C38").getDisplayValue(),
+          formulario.getRange("C39").getDisplayValue(),
+          formulario.getRange("C40").getDisplayValue(),
+
+          // Turno 2
+
+          formulario.getRange("E30").getDisplayValue(),
+          formulario.getRange("E31").getDisplayValue(),
+          formulario.getRange("E32").getDisplayValue(),
+          formulario.getRange("E33").getDisplayValue(),
+          formulario.getRange("E34").getDisplayValue(),
+          formulario.getRange("E35").getDisplayValue(),
+          formulario.getRange("E36").getDisplayValue(),
+          formulario.getRange("E37").getDisplayValue(),
+          formulario.getRange("E38").getDisplayValue(),
+          formulario.getRange("E39").getDisplayValue(),
+          formulario.getRange("E40").getDisplayValue(),
+
+          // Turno 3
+
+          formulario.getRange("G30").getDisplayValue(),
+          formulario.getRange("G31").getDisplayValue(),
+          formulario.getRange("G32").getDisplayValue(),
+          formulario.getRange("G33").getDisplayValue(),
+          formulario.getRange("G34").getDisplayValue(),
+          formulario.getRange("G35").getDisplayValue(),
+          formulario.getRange("G36").getDisplayValue(),
+          formulario.getRange("G37").getDisplayValue(),
+          formulario.getRange("G38").getDisplayValue(),
+          formulario.getRange("G39").getDisplayValue(),
+          formulario.getRange("G40").getDisplayValue(),
+
+          // Turno 4
+
+          formulario.getRange("I30").getDisplayValue(),
+          formulario.getRange("I31").getDisplayValue(),
+          formulario.getRange("I32").getDisplayValue(),
+          formulario.getRange("I33").getDisplayValue(),
+          formulario.getRange("I34").getDisplayValue(),
+          formulario.getRange("I35").getDisplayValue(),
+          formulario.getRange("I36").getDisplayValue(),
+          formulario.getRange("I37").getDisplayValue(),
+          formulario.getRange("I38").getDisplayValue(),
+          formulario.getRange("I39").getDisplayValue(),
+          formulario.getRange("I40").getDisplayValue(),
+
+          // Turno 5
+
+          formulario.getRange("C41").getDisplayValue(),
+          formulario.getRange("C42").getDisplayValue(),
+          formulario.getRange("C43").getDisplayValue(),
+          formulario.getRange("C44").getDisplayValue(),
+          formulario.getRange("C45").getDisplayValue(),
+          formulario.getRange("C46").getDisplayValue(),
+          formulario.getRange("C47").getDisplayValue(),
+          formulario.getRange("C48").getDisplayValue(),
+          formulario.getRange("C49").getDisplayValue(),
+          formulario.getRange("C50").getDisplayValue(),
+          formulario.getRange("C51").getDisplayValue(),
+
+          // Turno 6
+
+          formulario.getRange("E41").getDisplayValue(),
+          formulario.getRange("E42").getDisplayValue(),
+          formulario.getRange("E43").getDisplayValue(),
+          formulario.getRange("E44").getDisplayValue(),
+          formulario.getRange("E45").getDisplayValue(),
+          formulario.getRange("E46").getDisplayValue(),
+          formulario.getRange("E47").getDisplayValue(),
+          formulario.getRange("E48").getDisplayValue(),
+          formulario.getRange("E49").getDisplayValue(),
+          formulario.getRange("E50").getDisplayValue(),
+          formulario.getRange("E51").getDisplayValue(),
+
+          // Turno 7
+
+          formulario.getRange("G41").getDisplayValue(),
+          formulario.getRange("G42").getDisplayValue(),
+          formulario.getRange("G43").getDisplayValue(),
+          formulario.getRange("G44").getDisplayValue(),
+          formulario.getRange("G45").getDisplayValue(),
+          formulario.getRange("G46").getDisplayValue(),
+          formulario.getRange("G47").getDisplayValue(),
+          formulario.getRange("G48").getDisplayValue(),
+          formulario.getRange("G49").getDisplayValue(),
+          formulario.getRange("G50").getDisplayValue(),
+          formulario.getRange("G51").getDisplayValue(),
+
+          // Turno 8
+
+          formulario.getRange("I41").getDisplayValue(),
+          formulario.getRange("I42").getDisplayValue(),
+          formulario.getRange("I43").getDisplayValue(),
+          formulario.getRange("I44").getDisplayValue(),
+          formulario.getRange("I45").getDisplayValue(),
+          formulario.getRange("I46").getDisplayValue(),
+          formulario.getRange("I47").getDisplayValue(),
+          formulario.getRange("I48").getDisplayValue(),
+          formulario.getRange("I49").getDisplayValue(),
+          formulario.getRange("I50").getDisplayValue(),
+          formulario.getRange("I51").getDisplayValue(),
+
+          // Equipo Hospitalario
+
+          formulario.getRange("C53").getDisplayValue(),
+
+          // PPD
+
+          formulario.getRange("C55").getDisplayValue(),
+          formulario.getRange("D55").getDisplayValue(),
+          formulario.getRange("E55").getDisplayValue(),
+          formulario.getRange("F55").getDisplayValue(),
+          formulario.getRange("G55").getDisplayValue(),
+
+          // Ecografia abdominal
+
+          formulario.getRange("C56").getDisplayValue(),
+          formulario.getRange("D56").getDisplayValue(),
+          formulario.getRange("E56").getDisplayValue(),
+          formulario.getRange("F56").getDisplayValue(),
+          formulario.getRange("G56").getDisplayValue(),
+
+          // Ecografia renal y de vias urinarias superiores
+
+          formulario.getRange("C57").getDisplayValue(),
+          formulario.getRange("D57").getDisplayValue(),
+          formulario.getRange("E57").getDisplayValue(),
+          formulario.getRange("F57").getDisplayValue(),
+          formulario.getRange("G57").getDisplayValue(),
+
+          // Tisomf (<45 años)
+
+          formulario.getRange("C58").getDisplayValue(),
+          formulario.getRange("D58").getDisplayValue(),
+          formulario.getRange("E58").getDisplayValue(),
+          formulario.getRange("F58").getDisplayValue(),
+          formulario.getRange("G58").getDisplayValue(),
+
+          // Colonoscopía (>45 años extranjera/o)
+
+          formulario.getRange("C59").getDisplayValue(),
+          formulario.getRange("D59").getDisplayValue(),
+          formulario.getRange("E59").getDisplayValue(),
+          formulario.getRange("F59").getDisplayValue(),
+          formulario.getRange("G59").getDisplayValue(),
+
+          // Bucodental
+
+          formulario.getRange("C60").getDisplayValue(),
+          formulario.getRange("D60").getDisplayValue(),
+          formulario.getRange("E60").getDisplayValue(),
+          formulario.getRange("F60").getDisplayValue(),
+          formulario.getRange("G60").getDisplayValue(),
+
+          // PAP / Colposcopía
+
+          formulario.getRange("C61").getDisplayValue(),
+          formulario.getRange("D61").getDisplayValue(),
+          formulario.getRange("E61").getDisplayValue(),
+          formulario.getRange("F61").getDisplayValue(),
+          formulario.getRange("G61").getDisplayValue(),
+
+          // Eco mamaria (todas las edades)
+
+          formulario.getRange("C62").getDisplayValue(),
+          formulario.getRange("D62").getDisplayValue(),
+          formulario.getRange("E62").getDisplayValue(),
+          formulario.getRange("F62").getDisplayValue(),
+          formulario.getRange("G62").getDisplayValue(),
+
+          // Mamografía bilateral con proyección axilar (>40 años)
+
+          formulario.getRange("C63").getDisplayValue(),
+          formulario.getRange("D63").getDisplayValue(),
+          formulario.getRange("E63").getDisplayValue(),
+          formulario.getRange("F63").getDisplayValue(),
+          formulario.getRange("G63").getDisplayValue(),
+
+          // Ecografia endovaginal
+
+          formulario.getRange("C64").getDisplayValue(),
+          formulario.getRange("D64").getDisplayValue(),
+          formulario.getRange("E64").getDisplayValue(),
+          formulario.getRange("F64").getDisplayValue(),
+          formulario.getRange("G64").getDisplayValue(),
+
+          // Vacuna Doble Adultos
+
+          formulario.getRange("C65").getDisplayValue(),
+          formulario.getRange("D65").getDisplayValue(),
+          formulario.getRange("E65").getDisplayValue(),
+          formulario.getRange("F65").getDisplayValue(),
+          formulario.getRange("G65").getDisplayValue(),
+
+          // Vacuna Antineumococcica
+
+          formulario.getRange("C66").getDisplayValue(),
+          formulario.getRange("D66").getDisplayValue(),
+          formulario.getRange("E66").getDisplayValue(),
+          formulario.getRange("F66").getDisplayValue(),
+          formulario.getRange("G66").getDisplayValue(),
+
+          // Vacuna Antigripal
+
+          formulario.getRange("C67").getDisplayValue(),
+          formulario.getRange("D67").getDisplayValue(),
+          formulario.getRange("E67").getDisplayValue(),
+          formulario.getRange("F67").getDisplayValue(),
+          formulario.getRange("G67").getDisplayValue(),
+
+          // Vacuna Covid
+
+          formulario.getRange("C68").getDisplayValue(),
+          formulario.getRange("D68").getDisplayValue(),
+          formulario.getRange("E68").getDisplayValue(),
+          formulario.getRange("F68").getDisplayValue(),
+          formulario.getRange("G68").getDisplayValue(),
+
+          // Vacuna HPV (hasta los 26 años )
+
+          formulario.getRange("C69").getDisplayValue(),
+          formulario.getRange("D69").getDisplayValue(),
+          formulario.getRange("E69").getDisplayValue(),
+          formulario.getRange("F69").getDisplayValue(),
+          formulario.getRange("G69").getDisplayValue(),
+
+          // Parasitología - Test de Graham
+
+          formulario.getRange("C70").getDisplayValue(),
+          formulario.getRange("D70").getDisplayValue(),
+          formulario.getRange("E70").getDisplayValue(),
+          formulario.getRange("F70").getDisplayValue(),
+          formulario.getRange("G70").getDisplayValue(),
+
+          // Laboratorio
+
+          formulario.getRange("C71").getDisplayValue(),
+          formulario.getRange("D71").getDisplayValue(),
+          formulario.getRange("E71").getDisplayValue(),
+          formulario.getRange("F71").getDisplayValue(),
+          formulario.getRange("G71").getDisplayValue(),
+
+          // Rx torax
+
+          formulario.getRange("C72").getDisplayValue(),
+          formulario.getRange("D72").getDisplayValue(),
+          formulario.getRange("E72").getDisplayValue(),
+          formulario.getRange("F72").getDisplayValue(),
+          formulario.getRange("G72").getDisplayValue(),
+
+          // Rx abdomen
+
+          formulario.getRange("C73").getDisplayValue(),
+          formulario.getRange("D73").getDisplayValue(),
+          formulario.getRange("E73").getDisplayValue(),
+          formulario.getRange("F73").getDisplayValue(),
+          formulario.getRange("G73").getDisplayValue(),
+
+          // grupo y factor
+
+          formulario.getRange("C74").getDisplayValue(),
+          formulario.getRange("D74").getDisplayValue(),
+          formulario.getRange("E74").getDisplayValue(),
+          formulario.getRange("F74").getDisplayValue(),
+          formulario.getRange("G74").getDisplayValue(),
+
+          // Ecocardiograma
+
+          formulario.getRange("C75").getDisplayValue(),
+          formulario.getRange("D75").getDisplayValue(),
+          formulario.getRange("E75").getDisplayValue(),
+          formulario.getRange("F75").getDisplayValue(),
+          formulario.getRange("G75").getDisplayValue(),
+
+          // Electrocardiograma
+
+          formulario.getRange("C76").getDisplayValue(),
+          formulario.getRange("D76").getDisplayValue(),
+          formulario.getRange("E76").getDisplayValue(),
+          formulario.getRange("F76").getDisplayValue(),
+          formulario.getRange("G76").getDisplayValue(),
+
+          // Reprogramaciones
+
+          formulario.getRange("C79").getDisplayValue(),
+          formulario.getRange("D79").getDisplayValue(),
+          formulario.getRange("E79").getDisplayValue(),
+
+          formulario.getRange("C80").getDisplayValue(),
+          formulario.getRange("D80").getDisplayValue(),
+          formulario.getRange("E80").getDisplayValue(),
+
+          formulario.getRange("C81").getDisplayValue(),
+          formulario.getRange("D81").getDisplayValue(),
+          formulario.getRange("E81").getDisplayValue(),
+
+          formulario.getRange("C82").getDisplayValue(),
+          formulario.getRange("D82").getDisplayValue(),
+          formulario.getRange("E82").getDisplayValue(),
+
+          formulario.getRange("C83").getDisplayValue(),
+          formulario.getRange("D83").getDisplayValue(),
+          formulario.getRange("E83").getDisplayValue(),
+        ],
+      ];
+
+      datos.getRange(INT_R, 1, 1, 252).setValues(valores1);
+      SpreadsheetApp.getUi().alert("Datos actualizados");
+      Limpiar();
+    }
+  }
+}
+
+//conseguir: get
+//set: colocar
+
+function botonActualizar() {
+  // Actualizar los datos en la hoja de cálculo
+  crearNuevasColumnasOActualizarDatos();
+  Actualizar();
+  // actualizarPrimerCasoAsignado(); // Agregar la función que actualiza C3 con el primer caso asignado
+}
+
+function botonBuscar() {
+  pegarInformacionUltimaFecha();
+  Buscar();
+}
+
+ // ------------------ BOTON PARA MIGRAR DATOS DE LLAMADOS ------------------------------
+
+function LimpiarCoordis(){
+  
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var formS = ss.getSheetByName("coordis");
+   
+  var rangoLimpiar =  ["A2:H"];
+  for (let celda of rangoLimpiar ) {
+  
+    formS.getRange(celda).clearContent();
+
+   }
+
+}
+
+function LimpiarCasillas() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var formS = ss.getSheetByName("Nuevo Formato");
+
+  var rangesToClear = [
+    "O3:O"
+  ];
+  for (var i = 0; i < rangesToClear.length; i++) {
+    formS.getRange(rangesToClear[i]).clearContent();
+  }
+}
+
+
+
+function pasarCasos() {
+  var h1 = SpreadsheetApp.getActive().getSheetByName("Planilla");
+  var h2 = SpreadsheetApp.getActive().getSheetByName("coordis");
+
+  if (h1 && h2) {
+    var uFila = h1.getLastRow();
+    var rango = h1.getRange("A2:ZZ" + uFila).getValues();
+
+    if (rango && rango.length > 0) {
+      var mat = [];
+
+      for (var i = 0; i < rango.length; i++) {
+        if (rango[i] && rango[i][0] && rango[i][1]) { // Verificar que haya datos en las columnas A y B
+          var resultadoFecha = obtenerColumnaFechaMasActualCoordis(rango[i]);
+          var indiceColumnaFecha = resultadoFecha[1];
+
+          var fila = [
+            rango[i][0], // Columna A
+            rango[i][1], // Columna B
+            resultadoFecha[0] // Fecha más reciente
+          ];
+
+          // Agregar las tres columnas adyacentes a la derecha de la fecha más reciente
+          for (var j = 0; j < 3; j++) {
+            fila.push(rango[i][indiceColumnaFecha + j + 1]);
+          }
+
+          // Agregar el valor de la columna D de la hoja "Planilla"
+          fila.push(rango[i][3]); // Columna D en la hoja "Planilla"
+
+          mat.push(fila);
+        } else {
+          console.error("Fila " + i + " está indefinida o falta información en las columnas A o B.");
+        }
+      }
+
+      h2.getRange(2, 1, mat.length, mat[0].length).setValues(mat);
+    } else {
+      console.error("El rango está indefinido o vacío.");
+    }
+  } else {
+    console.error("No se pudo encontrar una de las hojas de cálculo.");
+  }
+}
+
+function obtenerColumnaFechaMasActualCoordis(fila) {
+  var fechaMasReciente = new Date(1960, 0, 1);
+  var indiceColumnaFecha = 0;
+
+  for (var i = 252; i < fila.length; i++) { // Iniciamos desde la columna 253
+    var fechaActual = new Date(fila[i]);
+
+    if (fechaActual > fechaMasReciente) {
+      fechaMasReciente = fechaActual;
+      indiceColumnaFecha = i;
+    }
+  }
+
+  return [fechaMasReciente, indiceColumnaFecha];
+}
+
+// Boton Traer llamados (Coordis)
+
+function traerLlamados () {
+  LimpiarCoordis();
+  LimpiarCasillas();
+  pasarCasos();
+
+}

@@ -1,0 +1,60 @@
+function pasarCasos() {
+  var h1 = SpreadsheetApp.getActive().getSheetByName("Planilla");
+  var h2 = SpreadsheetApp.getActive().getSheetByName("coordis");
+
+  if (h1 && h2) {
+    var uFila = h1.getLastRow();
+    var rango = h1.getRange("A2:ZZ" + uFila).getValues();
+
+    if (rango && rango.length > 0) {
+      var mat = [];
+
+      for (var i = 0; i < rango.length; i++) {
+        if (rango[i] && rango[i][0] && rango[i][1]) { // Verificar que haya datos en las columnas A y B
+          var resultadoFecha = obtenerColumnaFechaMasActual(rango[i]);
+          var indiceColumnaFecha = resultadoFecha[1];
+
+          var fila = [
+            rango[i][0], // Columna A
+            rango[i][1], // Columna B
+            resultadoFecha[0] // Fecha más reciente
+          ];
+
+          // Agregar las tres columnas adyacentes a la derecha de la fecha más reciente
+          for (var j = 0; j < 3; j++) {
+            fila.push(rango[i][indiceColumnaFecha + j + 1]);
+          }
+
+          // Agregar el valor de la columna D de la hoja "Planilla"
+          fila.push(rango[i][3]); // Columna D en la hoja "Planilla"
+
+          mat.push(fila);
+        } else {
+          console.error("Fila " + i + " está indefinida o falta información en las columnas A o B.");
+        }
+      }
+
+      h2.getRange(2, 1, mat.length, mat[0].length).setValues(mat);
+    } else {
+      console.error("El rango está indefinido o vacío.");
+    }
+  } else {
+    console.error("No se pudo encontrar una de las hojas de cálculo.");
+  }
+}
+
+function obtenerColumnaFechaMasActual(fila) {
+  var fechaMasReciente = new Date(1960, 0, 1);
+  var indiceColumnaFecha = 0;
+
+  for (var i = 252; i < fila.length; i++) { // Iniciamos desde la columna 253
+    var fechaActual = new Date(fila[i]);
+
+    if (fechaActual > fechaMasReciente) {
+      fechaMasReciente = fechaActual;
+      indiceColumnaFecha = i;
+    }
+  }
+
+  return [fechaMasReciente, indiceColumnaFecha];
+}
